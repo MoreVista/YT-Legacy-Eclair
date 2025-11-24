@@ -1,4 +1,4 @@
-# YT-Legasy-Eclair
+# YT-Legacy-Eclair
 動画の取得にinvidiousを使用するAndroid Eclair向けのYoutubeプレイヤー
 
 # How to use
