@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     SharedPreferences prefs;
     String invidiousInstance = "http://192.168.2.12:3000";
     String videoPlayerPackage = "org.videolan.vlc";
+    //String videoPlayerPackage = "com.redirectin.rockplayer.android.unified.lite";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -214,7 +215,7 @@ public class MainActivity extends Activity {
                 String videoId = obj.getString("videoId");
 
                 // MP4直リンク
-                String videoUrl = invidiousInstance + "/latest_version?id=" + videoId;
+                String videoUrl = invidiousInstance + "/latest_version?id=" + videoId + "&itag=18";
 
                 // サムネ取得
                 String thumbnailUrl = "";
