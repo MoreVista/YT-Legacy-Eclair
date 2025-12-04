@@ -6,8 +6,8 @@ android {
         applicationId "com.android.yt_legasy_a21"
         minSdkVersion 4
         targetSdkVersion 7
-        versionCode 6
-        versionName "0.2.3"
+        versionCode 7
+        versionName "0.2.4"
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }

@@ -93,14 +93,14 @@ public class MainActivity extends Activity {
 
                 Log.d("YTClient", "タップされたビデオID: " + tappedVideoId);
                 Log.d("YTClient", "タップされたMP4直リンク: " + tappedVideoUrl);
-                //preloadVideo(tappedVideoId);
-                //Toast.makeText(MainActivity.this, "読み込み中", Toast.LENGTH_SHORT).show();
-                //new android.os.Handler().postDelayed(new Runnable() {
-                //    @Override
+               // preloadVideo(tappedVideoId);
+               // Toast.makeText(MainActivity.this, "読み込み中", Toast.LENGTH_SHORT).show();
+               // new android.os.Handler().postDelayed(new Runnable() {
+               //   @Override
                 //    public void run() {
                 playWithSelectedPlayer(tappedVideoUrl);
                 //    }
-                //}, 5000);
+                //}, 1000);
             }
         });
     }
@@ -263,15 +263,23 @@ public class MainActivity extends Activity {
         }
     }
 
+    //プレロード機能
+    private void preloadVideo(final String videoId) {
 
-    //プレロード機能(未使用)
-    private void preloadVideo(String videoId) {
-        final String preloadUrl = invidiousInstance + "/latest_version?id=" + videoId;
         new Thread(new Runnable() {
             @Override
             public void run() {
+
+                // InvidiousのURL
+                String invidiousUrl = invidiousInstance + "/latest_version?id=" + videoId + "&itag=18";
+
                 try {
-                    URL url = new URL(preloadUrl);
+                    // 最終URLを取得
+                    String finalGoogleUrl = resolveRedirectUrl(invidiousUrl);
+                    Log.d("YTClient", "最終URL: " + finalGoogleUrl);
+
+                    // URL をプレロード
+                    URL url = new URL(finalGoogleUrl);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
                     conn.setConnectTimeout(5000);
@@ -279,28 +287,138 @@ public class MainActivity extends Activity {
 
                     // レスポンスを読むが、画面には表示しない
                     InputStream is = conn.getInputStream();
-                    while (is.read() != -1) {
+                    byte[] buffer = new byte[2048];
+                    while (is.read(buffer) != -1) {
                         // 読むだけで特に何もしない
                     }
                     is.close();
                     conn.disconnect();
 
-                    Log.d("YTClient", "プレロード完了: " + preloadUrl);
+                    Log.d("YTClient", "プレロード完了: " + finalGoogleUrl);
+
                 } catch (Exception e) {
-                    Log.e("YTClient", "プレロード失敗: " + preloadUrl, e);
+                    Log.e("YTClient", "プレロード失敗: " + invidiousUrl, e);
                 }
             }
         }).start();
     }
 
-    private void playWithSelectedPlayer(String videoUrl) {
+
+
+    private void playWithSelectedPlayer(final String videoUrl) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                //リダイレクト確認
+                final String resolvedUrl = resolveRedirectUrl(videoUrl);
+                Log.d("YTClient", "最終URL: " + resolvedUrl);
+
+                //アクセス可能かチェック
+                if (!isUrlAccessible(resolvedUrl)) {
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast.makeText(MainActivity.this,
+                                    "再生エラー（アクセス不可） もう一度お試しください",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                    return;
+                }
+
+                //VLCに渡す
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_VIEW);
+                            intent.setDataAndType(Uri.parse(resolvedUrl), "video/mp4");
+                            intent.setPackage(videoPlayerPackage);
+                            startActivity(intent);
+                        } catch (Exception e) {
+                            Toast.makeText(MainActivity.this,
+                                    "指定された再生アプリが見つかりません",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private String resolveRedirectUrl(String urlString) {
+        int maxRedirects = 10;  // 何段目まで読み込むか
+        String currentUrl = urlString;
+
+        for (int i = 0; i < maxRedirects; i++) {
+            HttpURLConnection conn = null;
+
+            try {
+                URL url = new URL(currentUrl);
+                conn = (HttpURLConnection) url.openConnection();
+
+                conn.setInstanceFollowRedirects(false);  // 自動追跡しない
+                conn.setRequestMethod("HEAD");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                int code = conn.getResponseCode();
+                Log.d("YTClient", "Redirect step " + i + ": " + code + " / " + currentUrl);
+
+                // リダイレクト判定
+                if (code == HttpURLConnection.HTTP_MOVED_TEMP ||     // 302
+                        code == HttpURLConnection.HTTP_MOVED_PERM ||     // 301
+                        code == HttpURLConnection.HTTP_SEE_OTHER ||      // 303
+                        code == 307 || code == 308) {                    // 307/308
+
+                    String location = conn.getHeaderField("Location");
+                    Log.d("YTClient", "Location: " + location);
+
+                    if (location == null || location.length() == 0) {
+                        break;  // Location が無ければ終了
+                    }
+
+                    URL base = new URL(currentUrl);
+                    URL nextUrl = new URL(base, location);  // 相対 URL 対応
+
+                    currentUrl = nextUrl.toString();
+                } else {
+                    // 200系 → 最終URL
+                    return currentUrl;
+                }
+
+            } catch (Exception e) {
+                Log.e("YTClient", "resolveRedirectUrl error: " + e);
+                return currentUrl;
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }
+
+        return currentUrl; // ループ上限到達 → 最後の URL を返す
+    }
+
+    private boolean isUrlAccessible(String urlString) {
+        HttpURLConnection conn = null;
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(Uri.parse(videoUrl), "video/mp4");
-            intent.setPackage(videoPlayerPackage);
-            startActivity(intent);
+            URL url = new URL(urlString);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            int code = conn.getResponseCode();
+            Log.d("YTClient", "アクセスチェック: " + code + " → " + urlString);
+
+            return (code >= 200 && code < 300);
+
         } catch (Exception e) {
             Toast.makeText(this, "指定された再生アプリが見つかりません", Toast.LENGTH_SHORT).show();
+            Log.e("YTClient", "isUrlAccessible エラー: " + e);
+            return false;
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
+
 }
