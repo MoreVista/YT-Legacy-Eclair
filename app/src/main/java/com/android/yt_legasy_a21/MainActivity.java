@@ -1,6 +1,7 @@
 package com.android.yt_legasy_a21;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
@@ -12,6 +13,11 @@ import android.view.MenuItem;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.view.ContextMenu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+
 
 import org.json.*;
 
@@ -28,7 +34,6 @@ public class MainActivity extends Activity {
     ArrayList<String> videoUrls = new ArrayList<String>();
     ArrayList<String> videoIds = new ArrayList<String>();
     ArrayList<String> thumbnailUrls = new ArrayList<String>();
-
 
 
     ArrayAdapter<String> adapter;
@@ -53,6 +58,7 @@ public class MainActivity extends Activity {
         editSearch = (EditText) findViewById(R.id.editSearch);
         btnSearch = (Button) findViewById(R.id.btnSearch);
         listView = (ListView) findViewById(R.id.listView);
+        registerForContextMenu(listView);
 
         adapter = new VideoListAdapter(this, titles, thumbnailUrls);
         listView.setAdapter(adapter);
@@ -93,10 +99,10 @@ public class MainActivity extends Activity {
 
                 Log.d("YTClient", "タップされたビデオID: " + tappedVideoId);
                 Log.d("YTClient", "タップされたMP4直リンク: " + tappedVideoUrl);
-               // preloadVideo(tappedVideoId);
-               // Toast.makeText(MainActivity.this, "読み込み中", Toast.LENGTH_SHORT).show();
-               // new android.os.Handler().postDelayed(new Runnable() {
-               //   @Override
+                // preloadVideo(tappedVideoId);
+                // Toast.makeText(MainActivity.this, "読み込み中", Toast.LENGTH_SHORT).show();
+                // new android.os.Handler().postDelayed(new Runnable() {
+                //   @Override
                 //    public void run() {
                 playWithSelectedPlayer(tappedVideoUrl);
                 //    }
@@ -304,7 +310,6 @@ public class MainActivity extends Activity {
     }
 
 
-
     private void playWithSelectedPlayer(final String videoUrl) {
         new Thread(new Runnable() {
             @Override
@@ -419,6 +424,195 @@ public class MainActivity extends Activity {
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    //コンテキストメニュー
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+
+        if (v.getId() == R.id.listView) {
+            menu.setHeaderTitle("サブメニュー");
+            menu.add(0, 1, 0, "動画を保存");
+            menu.add(0, 2, 1, "コピー: 動画URL");
+            menu.add(0, 3, 2, "コピー: 動画ID");
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void copyTextLegacy(String text) {
+        android.text.ClipboardManager cm =
+                (android.text.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        cm.setText(text);
+    }
+
+    //メニュー選択
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterView.AdapterContextMenuInfo info =
+                (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+
+        int index = info.position;
+
+        switch (item.getItemId()) {
+            case 1: // 保存
+                String saveUrl = videoUrls.get(index);
+                String originalUrl = videoUrls.get(index);
+                final String finalUrl = resolveRedirectUrl(originalUrl);
+                String saveId = videoIds.get(index);
+                Toast.makeText(this, "保存処理: " + saveId, Toast.LENGTH_SHORT).show();
+                String fileName = saveId + ".mp4";
+
+                downloadVideoWithProgress(finalUrl, fileName);
+                return true;
+
+            case 2: // URLコピー
+                String url = videoUrls.get(index);
+                copyTextLegacy(url);
+                Toast.makeText(this, "URL をコピーしました", Toast.LENGTH_SHORT).show();
+                return true;
+
+            case 3: // IDコピー
+                String id = videoIds.get(index);
+                copyTextLegacy(id);
+                Toast.makeText(this, "動画ID をコピーしました", Toast.LENGTH_SHORT).show();
+                return true;
+        }
+
+        return super.onContextItemSelected(item);
+    }
+
+
+    //動画ダウンロード
+    private void downloadVideoWithProgress(final String finalUrl, final String fileName) {
+
+        // ダイアログ生成
+        final ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
+        progressDialog.setTitle("ダウンロード中");
+        progressDialog.setMessage("準備しています...");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setIndeterminate(false);（UIスレッドで作る必要がある）
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                HttpURLConnection conn = null;
+                InputStream is = null;
+                FileOutputStream fos = null;
+
+                try {
+                    URL url = new URL(finalUrl);
+                    conn = (HttpURLConnection) url.openConnection();
+
+                    // ユーザーエージェント偽装
+                    conn.setRequestProperty("User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                    conn.setRequestProperty("Range", "bytes=0-");
+
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    conn.connect();
+
+                    int code = conn.getResponseCode();
+                    Log.d("YTClient", "ダウンロード開始 code=" + code);
+
+                    if (code < 200 || code >= 300) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                progressDialog.dismiss();
+                                Toast.makeText(MainActivity.this,
+                                        "ダウンロード開始に失敗しました",
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        });
+                        return;
+                    }
+
+                    int contentLength = conn.getContentLength();
+                    Log.d("YTClient", "ファイルサイズ: " + contentLength);
+
+                    // 進捗最大値設定
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (contentLength > 0) {
+                                progressDialog.setMax(100);
+                            }
+                        }
+                    });
+
+                    // 保存
+                    File sdcard = new File("/sdcard/Download");
+                    if (!sdcard.exists()) {
+                        sdcard = new File("/mnt/sdcard/Download");
+                    }
+                    if (!sdcard.exists()) {
+                        sdcard = getFilesDir(); // 最終手段
+                    }
+
+                    File outFile = new File(sdcard, fileName);
+                    fos = new FileOutputStream(outFile);
+                    Log.d("YTClient", "保存先パス: " + outFile.getAbsolutePath());
+                    fos = new FileOutputStream(outFile);
+
+                    is = conn.getInputStream();
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    int downloaded = 0;
+
+                    while ((len = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, len);
+                        downloaded += len;
+
+                        if (contentLength > 0) {
+                            final int percent = (int) ((downloaded * 100L) / contentLength);
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    progressDialog.setProgress(percent);
+                                }
+                            });
+                        }
+                    }
+
+                    fos.flush();
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressDialog.dismiss();
+                            Toast.makeText(MainActivity.this,
+                                    "保存完了: " + fileName,
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+
+                } catch (Exception e) {
+                    Log.e("YTClient", "ダウンロード失敗", e);
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressDialog.dismiss();
+                            Toast.makeText(MainActivity.this,
+                                    "ダウンロード中にエラーが発生しました",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+
+                } finally {
+                    try { if (is != null) is.close(); } catch (Exception ignored) {}
+                    try { if (fos != null) fos.close(); } catch (Exception ignored) {}
+                    try { if (conn != null) conn.disconnect(); } catch (Exception ignored) {}
+                }
+            }
+        }).start();
     }
 
 }

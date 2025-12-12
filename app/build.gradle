@@ -4,7 +4,7 @@ android {
     compileSdkVersion 28
     defaultConfig {
         applicationId "com.android.yt_legasy_a21"
-        minSdkVersion 4
+        minSdkVersion 5
         targetSdkVersion 7
         versionCode 7
         versionName "0.2.4"
