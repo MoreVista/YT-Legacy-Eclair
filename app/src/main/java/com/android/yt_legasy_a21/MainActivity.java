@@ -452,6 +452,7 @@ public class MainActivity extends Activity {
         AdapterView.AdapterContextMenuInfo info =
                 (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
 
+        int position = info.position;
         int index = info.position;
 
         switch (item.getItemId()) {

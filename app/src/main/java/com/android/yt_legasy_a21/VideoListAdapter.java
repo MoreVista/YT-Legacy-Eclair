@@ -65,10 +65,11 @@ public class VideoListAdapter extends ArrayAdapter<String> {
             holder.thumbnail.setImageResource(android.R.drawable.ic_menu_report_image);
         }
 
-
-
-
         ImageButton menuButton = convertView.findViewById(R.id.menuButton);
+
+        menuButton.setTag(position);
+        menuButton.setFocusable(false);
+        menuButton.setFocusableInTouchMode(false);
 
 // 三点ボタン押下 → コンテキストメニュー起動
         menuButton.setOnClickListener(new View.OnClickListener() {
