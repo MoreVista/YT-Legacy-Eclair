@@ -491,7 +491,7 @@ public class MainActivity extends Activity {
         progressDialog.setTitle("ダウンロード中");
         progressDialog.setMessage("準備しています...");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        progressDialog.setIndeterminate(false);（UIスレッドで作る必要がある）
+        progressDialog.setIndeterminate(false);
         progressDialog.setMax(100);
         progressDialog.setCancelable(false);
         progressDialog.show();

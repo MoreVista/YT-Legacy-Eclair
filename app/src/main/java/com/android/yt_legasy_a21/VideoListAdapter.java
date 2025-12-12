@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -64,8 +65,20 @@ public class VideoListAdapter extends ArrayAdapter<String> {
             holder.thumbnail.setImageResource(android.R.drawable.ic_menu_report_image);
         }
 
+
+
+
+        ImageButton menuButton = convertView.findViewById(R.id.menuButton);
+
+// 三点ボタン押下 → コンテキストメニュー起動
+        menuButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 長押しと同じメニューを表示
+                v.showContextMenu();
+            }
+        });
         return convertView;
     }
-
 }
 

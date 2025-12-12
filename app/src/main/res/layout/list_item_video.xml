@@ -25,5 +25,15 @@
         android:ellipsize="end"
         android:text="タイトル" />
 
+    <ImageButton
+        android:id="@+id/menuButton"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:background="@android:color/transparent"
+        android:src="@android:drawable/ic_menu_more" />
+
+
 </LinearLayout>
 
