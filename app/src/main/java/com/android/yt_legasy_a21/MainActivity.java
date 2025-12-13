@@ -35,6 +35,12 @@ public class MainActivity extends Activity {
     ArrayList<String> videoIds = new ArrayList<String>();
     ArrayList<String> thumbnailUrls = new ArrayList<String>();
 
+    private static final String KEY_TITLES = "titles";
+    private static final String KEY_VIDEO_IDS = "videoIds";
+    private static final String KEY_THUMBS = "thumbnailUrls";
+    private static final String KEY_VIDEO_URLS = "video_urls";
+
+
 
     ArrayAdapter<String> adapter;
 
@@ -49,6 +55,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
 
         // SharedPreferences初期化
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
@@ -111,6 +118,18 @@ public class MainActivity extends Activity {
         });
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        outState.putStringArrayList(KEY_TITLES, titles);
+        outState.putStringArrayList(KEY_VIDEO_IDS, videoIds);
+        outState.putStringArrayList(KEY_THUMBS, thumbnailUrls);
+        outState.putStringArrayList(KEY_VIDEO_URLS, videoUrls);
+
+        Log.d("YTClient", "検索結果を保存 件数=" + titles.size());
+    }
+
     // メニュー生成
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -127,6 +146,7 @@ public class MainActivity extends Activity {
         }
         return super.onOptionsItemSelected(item);
     }
+
 
     private void showSettingsDialog() {
         final EditText inputInstance = new EditText(this);
@@ -405,23 +425,27 @@ public class MainActivity extends Activity {
 
     private boolean isUrlAccessible(String urlString) {
         HttpURLConnection conn = null;
+        InputStream is = null;
+
         try {
             URL url = new URL(urlString);
             conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("HEAD");
+
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Range", "bytes=0-0");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
             int code = conn.getResponseCode();
             Log.d("YTClient", "アクセスチェック: " + code + " → " + urlString);
 
-            return (code >= 200 && code < 300);
+            return (code >= 200 && code < 400);
 
         } catch (Exception e) {
-            Toast.makeText(this, "指定された再生アプリが見つかりません", Toast.LENGTH_SHORT).show();
-            Log.e("YTClient", "isUrlAccessible エラー: " + e);
+            Log.e("YTClient", "isUrlAccessible エラー", e);
             return false;
         } finally {
+            try { if (is != null) is.close(); } catch (Exception ignored) {}
             if (conn != null) conn.disconnect();
         }
     }
@@ -446,6 +470,7 @@ public class MainActivity extends Activity {
         cm.setText(text);
     }
 
+
     //メニュー選択
     @Override
     public boolean onContextItemSelected(MenuItem item) {
@@ -456,16 +481,30 @@ public class MainActivity extends Activity {
         int index = info.position;
 
         switch (item.getItemId()) {
-            case 1: // 保存
-                String saveUrl = videoUrls.get(index);
-                String originalUrl = videoUrls.get(index);
-                final String finalUrl = resolveRedirectUrl(originalUrl);
-                String saveId = videoIds.get(index);
-                Toast.makeText(this, "保存処理: " + saveId, Toast.LENGTH_SHORT).show();
-                String fileName = saveId + ".mp4";
 
-                downloadVideoWithProgress(finalUrl, fileName);
+            case 1: // 保存
+                final String originalUrl = videoUrls.get(index);
+                final String saveId = videoIds.get(index);
+                final String fileName = saveId + ".mp4";
+
+                Toast.makeText(this, "保存処理: " + saveId, Toast.LENGTH_SHORT).show();
+
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        final String finalUrl = resolveRedirectUrl(originalUrl);
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                downloadVideoWithProgress(finalUrl, fileName);
+                            }
+                        });
+                    }
+                }).start();
+
                 return true;
+
 
             case 2: // URLコピー
                 String url = videoUrls.get(index);
