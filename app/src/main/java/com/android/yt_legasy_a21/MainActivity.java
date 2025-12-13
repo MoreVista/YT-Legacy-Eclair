@@ -531,6 +531,8 @@ public class MainActivity extends Activity {
             menu.add(0, 1, 0, "動画を保存");
             menu.add(0, 2, 1, "コピー: 動画URL");
             menu.add(0, 3, 2, "コピー: 動画ID");
+            menu.add(0, 4, 3, "強制的に再生を試行");
+            menu.add(0, 5, 4, "ブラウザで開く");
         }
     }
 
@@ -553,7 +555,7 @@ public class MainActivity extends Activity {
 
         switch (item.getItemId()) {
 
-            case 1: // 保存
+            case 1: {// 保存
                 final String originalUrl = videoUrls.get(index);
                 final String saveId = videoIds.get(index);
                 final String fileName = saveId + ".mp4";
@@ -575,19 +577,61 @@ public class MainActivity extends Activity {
                 }).start();
 
                 return true;
+            }
 
-
-            case 2: // URLコピー
+            case 2: {// URLコピー
                 String url = videoUrls.get(index);
                 copyTextLegacy(url);
                 Toast.makeText(this, "URL をコピーしました", Toast.LENGTH_SHORT).show();
                 return true;
-
-            case 3: // IDコピー
+            }
+            case 3: {// IDコピー
                 String id = videoIds.get(index);
                 copyTextLegacy(id);
                 Toast.makeText(this, "動画ID をコピーしました", Toast.LENGTH_SHORT).show();
                 return true;
+            }
+
+            case 4: { // 強制再生
+                final String rawUrl = videoUrls.get(index);
+
+                Log.d("YTClient", "強制再生URL: " + rawUrl);
+
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(Uri.parse(rawUrl), "video/mp4");
+                    intent.setPackage(videoPlayerPackage);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(this,
+                            "再生アプリを起動できませんでした",
+                            Toast.LENGTH_SHORT).show();
+
+                }
+                return true;
+            }
+
+            case 5: {// ブラウザで開く（強制）
+                final String rawUrl = videoUrls.get(index);
+
+                Log.d("YTClient", "ブラウザ強制オープンURL: " + rawUrl);
+
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse(rawUrl));
+
+                    // intent.setPackage("org.mozilla.firefox");
+                    // intent.setPackage("com.android.browser"); // AOSP
+                    // intent.setPackage("com.android.chrome");
+
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(this,
+                            "ブラウザを起動できませんでした",
+                            Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
         }
 
         return super.onContextItemSelected(item);
