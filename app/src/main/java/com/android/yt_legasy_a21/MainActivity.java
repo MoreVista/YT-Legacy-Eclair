@@ -2,14 +2,17 @@ package com.android.yt_legasy_a21;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.KeyEvent;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
@@ -17,6 +20,7 @@ import android.view.ContextMenu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.view.inputmethod.EditorInfo;
 
 
 import org.json.*;
@@ -122,6 +126,22 @@ public class MainActivity extends Activity {
             }
         });
 
+        editSearch.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+
+                if (actionId == EditorInfo.IME_ACTION_SEARCH
+                        || actionId == EditorInfo.IME_ACTION_DONE
+                        || (event != null
+                        && event.getAction() == KeyEvent.ACTION_DOWN
+                        && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+
+                    executeSearch();
+                    return true;
+                }
+                return false;
+            }
+        });
 
         // クリックリスナー
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -147,6 +167,26 @@ public class MainActivity extends Activity {
                 //}, 1000);
             }
         });
+    }
+
+    private void executeSearch() {
+
+        InputMethodManager imm =
+                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null && editSearch != null) {
+            imm.hideSoftInputFromWindow(editSearch.getWindowToken(), 0);
+        }
+        String query = editSearch.getText().toString().trim();
+        if (!query.equals("")) {
+            if (isVideoId(query)) {
+                String videoUrl = invidiousInstance + "/latest_version?id=" + query;
+                Log.d("YTClient", "入力された動画ID: " + query);
+                Log.d("YTClient", "生成されたURL: " + videoUrl);
+                playWithSelectedPlayer(videoUrl);
+            } else {
+                searchVideos(query);
+            }
+        }
     }
 
     @Override
