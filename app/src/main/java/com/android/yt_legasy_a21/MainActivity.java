@@ -69,9 +69,40 @@ public class MainActivity extends Activity {
 
         adapter = new VideoListAdapter(this, titles, thumbnailUrls);
         listView.setAdapter(adapter);
-        VideoListAdapter customAdapter = new VideoListAdapter(this, titles, thumbnailUrls);
-        listView.setAdapter(customAdapter);
-        adapter = customAdapter;
+
+        if (savedInstanceState != null) {
+            ArrayList<String> savedTitles =
+                    savedInstanceState.getStringArrayList("titles");
+            ArrayList<String> savedThumbs =
+                    savedInstanceState.getStringArrayList("thumbnailUrls");
+            ArrayList<String> savedIds =
+                    savedInstanceState.getStringArrayList("videoIds");
+            ArrayList<String> savedUrls =
+                    savedInstanceState.getStringArrayList("state_video_urls");
+
+            if (savedTitles != null) {
+                titles.clear();
+                titles.addAll(savedTitles);
+
+                if (savedThumbs != null) {
+                    thumbnailUrls.clear();
+                    thumbnailUrls.addAll(savedThumbs);
+                }
+
+                if (savedIds != null) {
+                    videoIds.clear();
+                    videoIds.addAll(savedIds);
+                }
+
+                if (savedUrls != null) {
+                    videoUrls.clear();
+                    videoUrls.addAll(savedUrls);
+                }
+
+                Log.d("YTClient", "検索結果を復元 件数=" + titles.size());
+            }
+        }
+
 
         btnSearch.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
